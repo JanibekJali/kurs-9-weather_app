@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:weather_app/pages/search_page.dart';
+import 'package:weather_app/utils/weather_util.dart';
 
 import '../constants/text_styles/text_styles.dart';
 
@@ -12,22 +17,82 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  dynamic temp = '';
+  String cityName = '';
+  String description = '';
+  String icons = '';
+  bool ailanipAtat = false;
   @override
   void initState() {
-    _getPosition();
+    setState(() {
+      ailanipAtat = true;
+    });
+    showWeatherByLocation();
     super.initState();
   }
 
+  Future<void> showWeatherByLocation() async {
+    final position = await _getPosition();
+    await abaIraynLocationMenenAlipKel(positionBer: position);
+
+    // log('Position lat ${position.latitude}');
+    // log('Position log ${position.longitude}');
+    // log('Position ${position.altitude}');
+  }
+
+  Future<void> abaIraynLocationMenenAlipKel({Position? positionBer}) async {
+    setState(() {
+      ailanipAtat = true;
+    });
+    try {
+      final clientHttp = http.Client();
+      Uri uri = Uri.parse(
+        'https://api.openweathermap.org/data/2.5/weather?lat=40.5254658&lon=72.7976189&appid=c3aa0301d9353c81b3f8e8254ca12e23',
+      );
+      final joop = await clientHttp.get(uri);
+      final jsonJoop = jsonDecode(joop.body);
+      // log('json ==> ${jsonJoop.body}');
+
+      // log('Json Joop  ===> $jsonJoop');
+      final kelvin = jsonJoop['main']['temp'] as dynamic;
+
+      //  Kelvin − 273,15
+      temp = WeatherUtil.kelvinToCelcius(kelvin);
+      cityName = jsonJoop['name'];
+      description = WeatherUtil.getDescription(temp);
+      icons = WeatherUtil.getWeatherIcon(kelvin);
+    } catch (error) {
+      throw Exception(error);
+    }
+    setState(() {
+      ailanipAtat = false;
+    });
+  }
+
+  Future<void>? getCityName(String cityName) async {
+    final client = http.Client();
+    try {
+      Uri uri = Uri.parse(
+          'https://api.openweathermap.org/data/2.5/weather?q=$cityName&appid=c3aa0301d9353c81b3f8e8254ca12e23');
+      final response = await client.get(uri);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        null;
+      }
+    } catch (kata) {
+      throw Exception(kata);
+    }
+  }
+
+  // GPS
   Future<Position> _getPosition() async {
     bool? serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      // Location services are not enabled don't continue
-      // accessing the position and request users of the
-      // App to enable the location services.
       return Future.error('Location services are disabled.');
     }
 
@@ -35,17 +100,11 @@ class _HomePageState extends State<HomePage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        // Permissions are denied, next time you could try
-        // requesting permissions again (this is also where
-        // Android's shouldShowRequestPermissionRationale
-        // returned true. According to Android guidelines
-        // your App should show an explanatory UI now.
         return Future.error('Location permissions are denied');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      // Permissions are denied forever, handle appropriately.
       return Future.error(
           'Location permissions are permanently denied, we cannot request permissions.');
     }
@@ -55,16 +114,17 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    log('Build ===>');
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         actions: [
           InkWell(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              final typedCityName = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SearchPage(),
+                  builder: (context) => SearchPage(),
                 ),
               );
             },
@@ -91,45 +151,50 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
+        if (ailanipAtat == true)
+          const Positioned(
+            left: 150,
+            top: 400,
+            child: SizedBox(
+                height: 50,
+                width: 50,
+                child: CircularProgressIndicator(
+                  color: Colors.red,
+                )),
+          )
+        else
+          Positioned(
+            left: 50,
+            top: 200,
+            child: Column(
+              // mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '$temp\u00B0',
+                      style: TextStyles.text100White,
+                    ),
+                    Text(
+                      icons,
+                      style: TextStyles.text60Wight,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         Positioned(
-          left: 50,
-          top: 200,
-          child: Column(
-            // mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              Row(
-                children: const [
-                  Text(
-                    '8\u00B0',
-                    style: TextStyles.text100White,
-                  ),
-                  Text(
-                    ' ',
-                    style: TextStyles.text60Wight,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const Positioned(
           top: 400,
-          right: 50,
-          child: Text(
-            '''
-            Jylyy kiinip chyk  
-            Jylyy kiinip chyk
-            Jylyy kiinip chyk 
-            ''',
-            textAlign: TextAlign.center,
-            style: TextStyles.text35Black,
-          ),
+          right: 0,
+          child: Text(description,
+              textAlign: TextAlign.center, style: TextStyles.text20Black),
         ),
-        const Positioned(
+        Positioned(
             top: 700,
             left: 150,
             child: Text(
-              'Bishkek',
+              cityName,
               // WeatherApiHttp().weatherHttp(),
               style: TextStyles.text35White,
             )),

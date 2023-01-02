@@ -1,10 +1,12 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:weather_app/constants/colors/colors.dart';
 import 'package:weather_app/constants/text_styles/text_styles.dart';
 
 class SearchPage extends StatelessWidget {
-  const SearchPage({super.key});
-
+  SearchPage({super.key});
+  final textEditingController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -20,6 +22,7 @@ class SearchPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextField(
+                controller: textEditingController,
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(
@@ -48,7 +51,13 @@ class SearchPage extends StatelessWidget {
                 height: 20,
               ),
               OutlinedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pop(
+                    context,
+                    textEditingController.text,
+                  );
+                  log('textEditingController ===>  ${textEditingController.text}');
+                },
                 style: OutlinedButton.styleFrom(
                   backgroundColor: AppColors.grey.withOpacity(0.3),
                   foregroundColor: Colors.white,
