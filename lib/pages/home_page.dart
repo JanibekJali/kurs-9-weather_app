@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> showWeatherByLocation() async {
     final position = await _getPosition();
     await abaIraynLocationMenenAlipKel(positionBer: position);
+    await getCityName(cityName);
 
     // log('Position lat ${position.latitude}');
     // log('Position log ${position.longitude}');
@@ -47,7 +48,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final clientHttp = http.Client();
       Uri uri = Uri.parse(
-        'https://api.openweathermap.org/data/2.5/weather?lat=40.5254658&lon=72.7976189&appid=c3aa0301d9353c81b3f8e8254ca12e23',
+        'https://api.openweathermap.org/data/2.5/weather?lat=${positionBer!.latitude}&lon=${positionBer.longitude}&appid=c3aa0301d9353c81b3f8e8254ca12e23',
       );
       final joop = await clientHttp.get(uri);
       final jsonJoop = jsonDecode(joop.body);
@@ -57,7 +58,7 @@ class _HomePageState extends State<HomePage> {
       final kelvin = jsonJoop['main']['temp'] as dynamic;
 
       //  Kelvin − 273,15
-      temp = WeatherUtil.kelvinToCelcius(kelvin);
+      temp = kelvin;
       cityName = jsonJoop['name'];
       description = WeatherUtil.getDescription(temp);
       icons = WeatherUtil.getWeatherIcon(kelvin);
@@ -69,18 +70,22 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  Future<void>? getCityName(String cityName) async {
+  Future<Map<String, dynamic>>? getCityName(String cityName) async {
     final client = http.Client();
     try {
       Uri uri = Uri.parse(
           'https://api.openweathermap.org/data/2.5/weather?q=$cityName&appid=c3aa0301d9353c81b3f8e8254ca12e23');
       final response = await client.get(uri);
+      final data = json.decode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data;
-      } else {
-        null;
+        final kelvin = data['main']['temp'];
+        temp = kelvin;
+        cityName = data['name'];
+        icons = WeatherUtil.getWeatherIcon(kelvin);
+        description = WeatherUtil.getDescription(temp);
+        setState(() {});
       }
+      return data;
     } catch (kata) {
       throw Exception(kata);
     }
@@ -127,6 +132,9 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) => SearchPage(),
                 ),
               );
+              log('typedCityName ====> $typedCityName');
+              await getCityName(typedCityName);
+              setState(() {});
             },
             child: const Icon(
               Icons.location_city,
