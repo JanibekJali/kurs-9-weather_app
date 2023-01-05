@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -17,15 +16,15 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  dynamic temp = '';
-  String cityName = '';
-  String description = '';
-  String icons = '';
-  bool ailanipAtat = false;
+  String _temp = '';
+  String _cityName = '';
+  String _description = '';
+  String _icons = '';
+  bool _ailanipAtat = false;
   @override
   void initState() {
     setState(() {
-      ailanipAtat = true;
+      _ailanipAtat = true;
     });
     showWeatherByLocation();
     super.initState();
@@ -34,60 +33,69 @@ class _HomePageState extends State<HomePage> {
   Future<void> showWeatherByLocation() async {
     final position = await _getPosition();
     await abaIraynLocationMenenAlipKel(positionBer: position);
-    await getCityName(cityName);
-
-    // log('Position lat ${position.latitude}');
-    // log('Position log ${position.longitude}');
-    // log('Position ${position.altitude}');
   }
 
   Future<void> abaIraynLocationMenenAlipKel({Position? positionBer}) async {
-    setState(() {
-      ailanipAtat = true;
-    });
     try {
-      final clientHttp = http.Client();
+      final client = http.Client();
+      setState(() {
+        _ailanipAtat = true;
+      });
       Uri uri = Uri.parse(
-        'https://api.openweathermap.org/data/2.5/weather?lat=${positionBer!.latitude}&lon=${positionBer.longitude}&appid=c3aa0301d9353c81b3f8e8254ca12e23',
-      );
-      final joop = await clientHttp.get(uri);
-      final jsonJoop = jsonDecode(joop.body);
-      // log('json ==> ${jsonJoop.body}');
+          'https://api.openweathermap.org/data/2.5/weather?lat=${positionBer!.latitude}&lon=${positionBer.longitude}&appid=c3aa0301d9353c81b3f8e8254ca12e23');
+      final response = await client.get(uri);
 
-      // log('Json Joop  ===> $jsonJoop');
-      final kelvin = jsonJoop['main']['temp'] as dynamic;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonJoop = response.body;
+        final data = jsonDecode(jsonJoop) as Map<String, dynamic>;
 
-      //  Kelvin − 273,15
-      temp = kelvin;
-      cityName = jsonJoop['name'];
-      description = WeatherUtil.getDescription(temp);
-      icons = WeatherUtil.getWeatherIcon(kelvin);
-    } catch (error) {
-      throw Exception(error);
+        final kelvin = data['main']['temp'] as num;
+
+        _cityName = data['name'] as String;
+
+        _temp = WeatherUtil.kelvinToCelcius(kelvin);
+        _description = WeatherUtil.getDescription(num.parse(_temp));
+
+        _icons = WeatherUtil.getWeatherIcon(kelvin);
+        setState(() {
+          _ailanipAtat = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _ailanipAtat = false;
+      });
+
+      throw Exception(e);
     }
-    setState(() {
-      ailanipAtat = false;
-    });
   }
 
-  Future<Map<String, dynamic>>? getCityName(String cityName) async {
-    final client = http.Client();
+  Future<void> getCityName(String typeCityName) async {
     try {
+      final client = http.Client();
+
       Uri uri = Uri.parse(
-          'https://api.openweathermap.org/data/2.5/weather?q=$cityName&appid=c3aa0301d9353c81b3f8e8254ca12e23');
+          'https://api.openweathermap.org/data/2.5/weather?q=$typeCityName&appid=c3aa0301d9353c81b3f8e8254ca12e23');
       final response = await client.get(uri);
-      final data = json.decode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = response.body;
+        final data = jsonDecode(body);
         final kelvin = data['main']['temp'];
-        temp = kelvin;
-        cityName = data['name'];
-        icons = WeatherUtil.getWeatherIcon(kelvin);
-        description = WeatherUtil.getDescription(temp);
-        setState(() {});
+        _cityName = data['name'];
+
+        _temp = WeatherUtil.kelvinToCelcius(kelvin);
+        _icons = WeatherUtil.getWeatherIcon(kelvin);
+        _description = WeatherUtil.getDescription(int.parse(_temp));
+
+        setState(() {
+          _ailanipAtat = false;
+        });
       }
-      return data;
-    } catch (kata) {
-      throw Exception(kata);
+    } catch (katany) {
+      setState(() {
+        _ailanipAtat = false;
+      });
+      throw Exception(katany);
     }
   }
 
@@ -119,7 +127,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    log('Build ===>');
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -132,7 +139,7 @@ class _HomePageState extends State<HomePage> {
                   builder: (context) => SearchPage(),
                 ),
               );
-              log('typedCityName ====> $typedCityName');
+
               await getCityName(typedCityName);
               setState(() {});
             },
@@ -142,9 +149,12 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ],
-        leading: Image.asset(
-          'assets/images/location.png',
-          scale: 10,
+        leading: InkWell(
+          onTap: () async => await showWeatherByLocation(),
+          child: Image.asset(
+            'assets/images/location.png',
+            scale: 10,
+          ),
         ),
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -159,7 +169,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        if (ailanipAtat == true)
+        if (_ailanipAtat == true)
           const Positioned(
             left: 150,
             top: 400,
@@ -180,11 +190,11 @@ class _HomePageState extends State<HomePage> {
                 Row(
                   children: [
                     Text(
-                      '$temp\u00B0',
+                      '$_temp\u00B0',
                       style: TextStyles.text100White,
                     ),
                     Text(
-                      icons,
+                      _icons,
                       style: TextStyles.text60Wight,
                     ),
                   ],
@@ -195,14 +205,14 @@ class _HomePageState extends State<HomePage> {
         Positioned(
           top: 400,
           right: 0,
-          child: Text(description,
+          child: Text(_description,
               textAlign: TextAlign.center, style: TextStyles.text20Black),
         ),
         Positioned(
-            top: 700,
+            top: 600,
             left: 150,
             child: Text(
-              cityName,
+              _cityName,
               // WeatherApiHttp().weatherHttp(),
               style: TextStyles.text35White,
             )),
